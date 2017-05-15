@@ -1,27 +1,28 @@
 package com.github.sguzman.scache
 
-import java.io.{InputStream, OutputStream}
 import java.net.InetSocketAddress
-
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
-
 import scala.language.postfixOps
 
-class Scache extends HttpHandler{
-
+object Scache {
   def main(args: Array[String]) {
     val server = HttpServer.create(new InetSocketAddress(8000), 0)
     server.createContext("/", new Scache())
     server.setExecutor(null)
 
     server.start()
+    println("Hit Q key to exit...")
 
-    println("Hit any key to exit...")
+    while (true) {
+      if ('q' == System.in.read()) {
+        server.stop(0)
+      }
+    }
 
-    System.in.read()
-    server.stop(0)
   }
+}
 
+class Scache extends HttpHandler{
   var idx: Int = 0
 
   def handle(t: HttpExchange) {
