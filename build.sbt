@@ -19,8 +19,8 @@ resolvers += "Search Maven" at "https://repo1.maven.org/maven2/"
 /** Source Dependencies */
 libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-lang3" % "3.4",
-  "org.tinylog" % "tinylog" % "1.2",
-  "org.jsoup" % "jsoup" % "1.10.2"
+  "com.typesafe.akka" % "akka-stream_2.12" % "2.5.1",
+  "com.typesafe.akka" % "akka-http_2.12" % "10.0.6"
 )
 
 /** Make sure to fork on run */
