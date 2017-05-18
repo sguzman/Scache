@@ -20,7 +20,9 @@ resolvers += "Search Maven" at "https://repo1.maven.org/maven2/"
 libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-lang3" % "3.4",
   "com.typesafe.akka" % "akka-stream_2.12" % "2.5.1",
-  "com.typesafe.akka" % "akka-http_2.12" % "10.0.6"
+  "com.typesafe.akka" % "akka-http_2.12" % "10.0.6",
+  "com.lihaoyi" % "upickle_2.12" % "0.4.4",
+  "org.tinylog" % "tinylog" % "1.2"
 )
 
 /** Make sure to fork on run */
