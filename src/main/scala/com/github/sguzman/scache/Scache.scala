@@ -1,11 +1,10 @@
 package com.github.sguzman.scache
 
-import java.io.{File, FileOutputStream, PrintWriter}
+import java.io.{FileOutputStream, PrintWriter}
 import java.util.concurrent.Executors
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.server.{HttpApp, Route}
@@ -14,12 +13,10 @@ import akka.util.ByteString
 import org.apache.commons.lang3.StringUtils
 import org.pmw.tinylog.Logger
 
-import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutorService}
 import scala.concurrent.duration.Duration
 import scala.io.Source
 
-// Server definition
 object Scache extends HttpApp {
   implicit val system = ActorSystem("system")
   implicit val materializer = ActorMaterializer()
