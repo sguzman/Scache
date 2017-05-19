@@ -105,5 +105,9 @@ object Scache extends HttpApp {
     this.reqCounter += 1
   }
 
-  def main(args: Array[String]): Unit = this.startServer("localhost", args(0).toInt)
+  def main(args: Array[String]): Unit = try {
+    this.startServer("localhost", args(0).toInt)
+  } catch {
+    case _: Throwable => System.exit(1)
+  }
 }
