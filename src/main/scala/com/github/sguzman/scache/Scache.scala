@@ -22,7 +22,7 @@ object Scache extends HttpApp {
   implicit val materializer = ActorMaterializer()
   implicit val executor: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(8))
 
-  val filename = "./src/main/res/data.db"
+  val filename = "./data.db"
   var cache: Map[String, String] = this.getCache
   var reqCounter: Long = 0
 
