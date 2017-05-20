@@ -28,16 +28,22 @@ object Scache extends HttpApp {
 
   def route: Route =  {
     extractRequest { request =>
+      val headers = Map[String, String](request.headers.filter(_.name().startsWith("Gyg-")).map(h => (StringUtils.substringAfter(h.name(), "Gyg-").capitalize, h.value())): _*)
       val body = Await.result(request.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String), Duration.Inf)
-      if (cache.contains(request.uri.toString)) {
-        complete(HttpResponse(entity = HttpEntity(cache.getOrElse(request.uri.toString, ""))))
-      } else {
-        val path = request.uri.path.toString
-        val querystring = request.uri.rawQueryString.getOrElse("")
-        val headers = Map[String, String](request.headers.filter(_.name().startsWith("Gyg-")).map(h => (StringUtils.substringAfter(h.name(), "Gyg-").capitalize, h.value())): _*)
-        val host = headers.getOrElse("Gyg-host", "")
+      val key = s"${request.uri.toString}${headers.mkString}$body"
 
-        val httpPrep = HttpRequest(HttpMethods.GET, s"https://$host$path?$querystring").withEntity(body)
+      if (cache.contains(key)) {
+        complete(HttpResponse(entity = HttpEntity(cache.getOrElse(key, ""))))
+      } else {
+
+        val path = request.uri.path.toString
+        var querystring = request.uri.rawQueryString.getOrElse("")
+        if (!querystring.isEmpty) {
+          querystring = "?" + querystring
+        }
+
+        val host = headers.getOrElse("Host", "")
+        val httpPrep = HttpRequest(HttpMethods.GET, s"https://$host$path$querystring").withEntity(body)
         headers.foreach(h => httpPrep.withHeaders(RawHeader(h._1, h._2)))
 
         val result = Await.result(Http().singleRequest(httpPrep), Duration.Inf)
@@ -45,7 +51,7 @@ object Scache extends HttpApp {
         this.metaPrint(host, path, querystring, body, headers, result, entityBody)
 
         if (result.status.isSuccess) {
-          cache += (request.uri.toString -> entityBody)
+          cache += (key -> entityBody)
 
           this.setCache()
         }
@@ -104,8 +110,10 @@ object Scache extends HttpApp {
   }
 
   def main(args: Array[String]): Unit = try {
-    this.startServer("localhost", args(0).toInt)
+    this.startServer("localhost", args.head.toInt)
   } catch {
-    case _: Throwable => System.exit(1)
+    case t: Throwable =>
+      t.printStackTrace()
+      System.exit(1)
   }
 }
