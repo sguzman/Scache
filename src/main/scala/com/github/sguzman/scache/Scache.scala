@@ -27,32 +27,30 @@ object Scache extends HttpApp {
   var reqCounter: Long = 0
 
   def route: Route =  {
-    extractUri { uri =>
-      entity(as[String]) { body =>
-        if (cache.contains(uri.toString)) {
-          complete(HttpResponse(entity = HttpEntity(cache.getOrElse(uri.toString, ""))))
-        } else {
-          val path = uri.path.toString
-          val qs = Map[String,String](uri.rawQueryString.getOrElse("").split('&').map(_.split('=')).map(s => (s(0), s(1))): _*)
-          val host = qs.getOrElse("gyg-host", "")
-          val querystring = qs.getOrElse("gyg-querystring", "")
-          val rawHeaders = qs.filterKeys(_.startsWith("gyg-header-")).map({case (k,v) => RawHeader(StringUtils.substringAfter(k, "gyg-header-").capitalize, v)}).toList
+    extractRequest { request =>
+      val body = Await.result(request.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String), Duration.Inf)
+      if (cache.contains(request.uri.toString)) {
+        complete(HttpResponse(entity = HttpEntity(cache.getOrElse(request.uri.toString, ""))))
+      } else {
+        val path = request.uri.path.toString
+        val querystring = request.uri.rawQueryString.getOrElse("")
+        val headers = Map[String, String](request.headers.filter(_.name().startsWith("Gyg-")).map(h => (StringUtils.substringAfter(h.name(), "Gyg-").capitalize, h.value())): _*)
+        val host = headers.getOrElse("Gyg-host", "")
 
-          val httpPrep = HttpRequest(HttpMethods.GET, s"https://$host$path?$querystring").withEntity(body)
-          rawHeaders.foreach(httpPrep.withHeaders(_))
+        val httpPrep = HttpRequest(HttpMethods.GET, s"https://$host$path?$querystring").withEntity(body)
+        headers.foreach(h => httpPrep.withHeaders(RawHeader(h._1, h._2)))
 
-          val result = Await.result(Http().singleRequest(httpPrep), Duration.Inf)
-          val entityBody = Await.result(result.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String), Duration.Inf)
-          this.metaPrint(host, path, querystring, body, rawHeaders, result, entityBody)
+        val result = Await.result(Http().singleRequest(httpPrep), Duration.Inf)
+        val entityBody = Await.result(result.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String), Duration.Inf)
+        this.metaPrint(host, path, querystring, body, headers, result, entityBody)
 
-          if (result.status.isSuccess) {
-            cache += (uri.toString -> entityBody)
+        if (result.status.isSuccess) {
+          cache += (request.uri.toString -> entityBody)
 
-            this.setCache()
-          }
-
-          complete(result)
+          this.setCache()
         }
+
+        complete(result)
       }
     }
   }
@@ -74,7 +72,7 @@ object Scache extends HttpApp {
     }
   }
 
-  def metaPrint(host: String, path: String, qs: String, body: String, headers: List[RawHeader], resp: HttpResponse, entityBody: String): Unit = {
+  def metaPrint(host: String, path: String, qs: String, body: String, headers: Map[String,String], resp: HttpResponse, entityBody: String): Unit = {
     Logger.info(
       s"""
          |\t PROXY REQUEST - [${this.reqCounter}]
