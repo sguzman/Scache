@@ -22,7 +22,9 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" % "akka-stream_2.12" % "2.5.1",
   "com.typesafe.akka" % "akka-http_2.12" % "10.0.6",
   "com.lihaoyi" % "upickle_2.12" % "0.4.4",
-  "org.tinylog" % "tinylog" % "1.2"
+  "org.tinylog" % "tinylog" % "1.2",
+  "org.json" % "json" % "20170516",
+  "ch.megard" % "akka-http-cors_2.12" % "0.2.1"
 )
 
 /** Make sure to fork on run */
