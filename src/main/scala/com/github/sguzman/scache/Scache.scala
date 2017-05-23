@@ -6,7 +6,7 @@ import java.util.concurrent.Executors
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{HttpOriginRange, RawHeader}
+import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server.{HttpApp, Route}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
@@ -18,6 +18,7 @@ import org.pmw.tinylog.Logger
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutorService}
 import scala.concurrent.duration.Duration
 import scala.io.Source
+import scala.collection.JavaConverters
 
 object Scache extends HttpApp {
   implicit val system = ActorSystem("system")
@@ -28,29 +29,24 @@ object Scache extends HttpApp {
   var cache: Map[String, String] = this.getCache
   var reqCounter: Long = 0
 
-  var settings = CorsSettings.defaultSettings.copy(allowGenericHttpRequests = true, allowCredentials = false, allowedOrigins = HttpOriginRange.*)
+  var settings: CorsSettings.Default = CorsSettings.defaultSettings.copy(allowGenericHttpRequests = true, allowCredentials = false, allowedOrigins = HttpOriginRange.*)
 
   def route: Route =  {
     CorsDirectives.cors(settings) {
       extractRequest { request =>
         val content = request.headers.filter(_.name == "Content-Language").head.value
-        val headers = new JSONObject(new JSONTokener(content))
+        val headers = JavaConverters.mapAsScalaMap(new JSONObject(new JSONTokener(content)).toMap)
         val body = Await.result(request.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String), Duration.Inf)
         val key = s"${request.uri.toString}$content$body"
 
         if (cache.contains(key)) {
           complete(HttpResponse(entity = HttpEntity(cache.getOrElse(key, ""))))
         } else {
-
           val path = request.uri.path.toString
-          var querystring = request.uri.rawQueryString.getOrElse("")
-          if (!querystring.isEmpty) {
-            querystring = "?" + querystring
-          }
-
-          val host = headers.getString("Host")
-          val httpPrep = HttpRequest(HttpMethods.GET, s"https://$host$path$querystring", Nil, HttpEntity(body), HttpProtocols.`HTTP/1.1`)
-          headers.keySet.forEach(h => httpPrep.withHeaders(RawHeader(h, headers.getString(h))))
+          val querystring = if (request.uri.rawQueryString.getOrElse("") == "") "?" + request.uri.rawQueryString else ""
+          val host = headers.getOrElse("Host", "").toString
+          val head = (for ((k,v) <- headers) yield RawHeader(k, v.toString)).to[collection.immutable.Seq]
+          var httpPrep = HttpRequest(HttpMethods.GET, s"https://$host$path$querystring", head, HttpEntity(body), HttpProtocols.`HTTP/1.1`)
 
           val result = Await.result(Http().singleRequest(httpPrep), Duration.Inf)
           val entityBody = Await.result(result.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String), Duration.Inf)
